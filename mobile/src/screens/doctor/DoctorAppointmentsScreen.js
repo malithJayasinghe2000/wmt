@@ -10,12 +10,14 @@ import FilterChips from '../../components/FilterChips';
 import InfoRow from '../../components/InfoRow';
 import AttachedFile from '../../components/AttachedFile';
 import { getAllAppointments, updateAppointmentStatus } from '../../api/appointmentApi';
+import { getMyPrescriptions } from '../../api/prescriptionApi';
 import { colors, shadow, radius } from '../../utils/theme';
 
 const FILTERS = ['All', 'Pending', 'Confirmed', 'Completed'];
 
 export default function DoctorAppointmentsScreen({ navigation }) {
   const [items, setItems] = useState([]);
+  const [written, setWritten] = useState(new Set());
   const [filter, setFilter] = useState('Pending');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -25,7 +27,23 @@ export default function DoctorAppointmentsScreen({ navigation }) {
     try {
       setError('');
       const params = status === 'All' ? {} : { status };
-      setItems(await getAllAppointments(params));
+
+      // Load the prescriptions this doctor already wrote, so a visit that
+      // has one does not show the "Write prescription" button again.
+      const [appointments, prescriptions] = await Promise.all([
+        getAllAppointments(params),
+        getMyPrescriptions(),
+      ]);
+
+      setItems(appointments);
+      setWritten(
+        new Set(
+          prescriptions
+            .map((p) => p.appointmentId?._id || p.appointmentId)
+            .filter(Boolean)
+            .map(String)
+        )
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -118,13 +136,20 @@ export default function DoctorAppointmentsScreen({ navigation }) {
               )}
 
               {item.status === 'Completed' && (
-                <TouchableOpacity
-                  style={styles.primaryBtn}
-                  onPress={() => navigation.navigate('WritePrescription', { appointment: item })}
-                >
-                  <Ionicons name="create-outline" size={15} color="#fff" />
-                  <Text style={styles.primaryText}>Write prescription</Text>
-                </TouchableOpacity>
+                written.has(String(item._id)) ? (
+                  <View style={styles.donePill}>
+                    <Ionicons name="checkmark-circle" size={15} color={colors.success} />
+                    <Text style={styles.doneText}>Prescription added</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={() => navigation.navigate('WritePrescription', { appointment: item })}
+                  >
+                    <Ionicons name="create-outline" size={15} color="#fff" />
+                    <Text style={styles.primaryText}>Write prescription</Text>
+                  </TouchableOpacity>
+                )
               )}
             </View>
           </View>
@@ -160,5 +185,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
   },
   ghostText: { color: colors.danger, fontWeight: '700', fontSize: 13, marginLeft: 5 },
+  donePill: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9',
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8,
+  },
+  doneText: { color: colors.success, fontWeight: '700', fontSize: 13, marginLeft: 5 },
   error: { color: colors.danger, paddingHorizontal: 16 },
 });
