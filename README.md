@@ -6,6 +6,10 @@ React Native (Expo) + Node.js/Express + MongoDB, backend hosted online.
 Patients book doctor appointments, doctors open time slots and write prescriptions,
 and an admin approves everything.
 
+**New to the project? Start with [SETUP.md](../SETUP.md)** — a step by step guide
+from installing Node to running the app on your phone, including the errors you
+are likely to hit.
+
 ## Folder layout
 
 ```
